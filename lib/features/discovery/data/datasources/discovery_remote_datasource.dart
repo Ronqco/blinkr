@@ -33,44 +33,65 @@ class DiscoveryRemoteDataSourceImpl implements DiscoveryRemoteDataSource {
       throw Exception('User not authenticated');
     }
 
-    // Get current user's interests for common interests calculation
-    final currentUserInterests = await supabase
-        .from('user_interests')
-        .select('category_id')
-        .eq('user_id', currentUserId);
-
-    final myInterests = (currentUserInterests as List<dynamic>)
-        .map((e) => e['category_id'] as String)
-        .toSet();
-
-    // Call the PostgreSQL function to get nearby users
-    final response = await supabase.rpc(
-      'get_nearby_users',
-      params: {
-        'user_location': 'POINT($longitude $latitude)',
-        'radius_km': radiusKm,
-        'limit_count': 50,
-      },
-    );
-
-    final users = (response as List<dynamic>).map((userData) {
-      // Get user interests
-      return supabase
+    try {
+      // Obtener intereses del usuario actual
+      final currentUserInterestsResponse = await supabase
           .from('user_interests')
           .select('category_id')
-          .eq('user_id', userData['id'])
-          .then((interests) {
-        final userInterests = (interests as List<dynamic>)
+          .eq('user_id', currentUserId);
+
+      final myInterests = (currentUserInterestsResponse as List<dynamic>)
+          .map((e) => e['category_id'] as String)
+          .toSet();
+
+      // Llamar a la función Postgres get_nearby_users()
+      final response = await supabase.rpc(
+        'get_nearby_users',
+        params: {
+          'user_location': 'SRID=4326;POINT($longitude $latitude)',
+          'radius_km': radiusKm,
+          'limit_count': 50,
+        },
+      );
+
+      if (response == null || response is! List) {
+        throw Exception('Invalid response from get_nearby_users');
+      }
+
+      // Procesar los usuarios obtenidos
+      final users = response.map((userData) async {
+        final userId = userData['id'] as String?;
+
+        if (userId == null) return null;
+
+        // Obtener intereses de cada usuario cercano
+        final interestsResponse = await supabase
+            .from('user_interests')
+            .select('category_id')
+            .eq('user_id', userId);
+
+        final userInterests = (interestsResponse as List<dynamic>)
             .map((e) => e['category_id'] as String)
             .toList();
 
-        // Calculate common interests
+        // Calcular intereses en común
         final commonInterests =
             userInterests.where((i) => myInterests.contains(i)).toList();
 
-        // Calculate age
-        final dateOfBirth = DateTime.parse(userData['date_of_birth']);
-        final age = DateTime.now().year - dateOfBirth.year;
+        // Calcular edad
+        final dateOfBirthStr = userData['date_of_birth'];
+        int age = 0;
+        if (dateOfBirthStr != null) {
+          final dateOfBirth = DateTime.tryParse(dateOfBirthStr);
+          if (dateOfBirth != null) {
+            final now = DateTime.now();
+            age = now.year - dateOfBirth.year;
+            if (now.month < dateOfBirth.month ||
+                (now.month == dateOfBirth.month && now.day < dateOfBirth.day)) {
+              age--;
+            }
+          }
+        }
 
         return NearbyUserModel.fromJson({
           ...userData,
@@ -78,24 +99,28 @@ class DiscoveryRemoteDataSourceImpl implements DiscoveryRemoteDataSource {
           'interests': userInterests,
           'common_interests': commonInterests,
         });
-      });
-    }).toList();
+      }).toList();
 
-    final resolvedUsers = await Future.wait(users);
+      // Esperar a que se resuelvan todas las llamadas
+      final resolvedUsers = (await Future.wait(users)).whereType<NearbyUserModel>().toList();
 
-    // Filter by interests if specified
-    if (filterByInterests != null && filterByInterests.isNotEmpty) {
-      return resolvedUsers
-          .where((user) => user.interests
-              .any((interest) => filterByInterests.contains(interest)))
-          .toList();
+      // Filtro opcional por intereses
+      List<NearbyUserModel> filteredUsers = resolvedUsers;
+      if (filterByInterests != null && filterByInterests.isNotEmpty) {
+        filteredUsers = resolvedUsers
+            .where((user) => user.interests
+                .any((interest) => filterByInterests.contains(interest)))
+            .toList();
+      }
+
+      // Ordenar por número de intereses en común (descendente)
+      filteredUsers.sort((a, b) =>
+          b.commonInterests.length.compareTo(a.commonInterests.length));
+
+      return filteredUsers;
+    } catch (e) {
+      throw Exception('Error fetching nearby users: $e');
     }
-
-    // Sort by common interests count (descending)
-    resolvedUsers.sort((a, b) =>
-        b.commonInterests.length.compareTo(a.commonInterests.length));
-
-    return resolvedUsers;
   }
 
   @override
@@ -104,9 +129,13 @@ class DiscoveryRemoteDataSourceImpl implements DiscoveryRemoteDataSource {
     required double latitude,
     required double longitude,
   }) async {
-    await supabase.from('users').update({
-      'location': 'POINT($longitude $latitude)',
-      'location_updated_at': DateTime.now().toIso8601String(),
-    }).eq('id', userId);
+    try {
+      await supabase.from('users').update({
+        'location': 'SRID=4326;POINT($longitude $latitude)',
+        'location_updated_at': DateTime.now().toIso8601String(),
+      }).eq('id', userId);
+    } catch (e) {
+      throw Exception('Error updating user location: $e');
+    }
   }
 }

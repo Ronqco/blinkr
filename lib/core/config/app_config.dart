@@ -1,15 +1,10 @@
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
 class AppConfig {
   // Supabase Configuration
-  static const String supabaseUrl = String.fromEnvironment(
-    'SUPABASE_URL',
-    defaultValue: 'https://ppbjuicqobgzvadfxuap.supabase.co',
-  );
-  
-  static const String supabaseAnonKey = String.fromEnvironment(
-    'SUPABASE_ANON_KEY',
-    defaultValue: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBwYmp1aWNxb2JnenZhZGZ4dWFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE2MjIyODksImV4cCI6MjA3NzE5ODI4OX0.dng6b8H8wEnfUDGpeVlzccDAmkW3OulK_KgFthUvDuQ',
-  );
-  
+  static String get supabaseUrl => dotenv.env['SUPABASE_URL'] ?? '';
+  static String get supabaseAnonKey => dotenv.env['SUPABASE_ANON_KEY'] ?? '';
+
   // App Configuration
   static const String appName = 'Blinkr';
   static const String appVersion = '2.0.0';
@@ -44,4 +39,14 @@ class AppConfig {
   // Feed Configuration
   static const int postsPerPage = 20;
   static const int maxImageSize = 5 * 1024 * 1024; // 5MB
+
+  /// Valida variables críticas
+  static void validateConfig() {
+    if (supabaseUrl.isEmpty) {
+      throw Exception('SUPABASE_URL is missing in .env file');
+    }
+    if (supabaseAnonKey.isEmpty) {
+      throw Exception('SUPABASE_ANON_KEY is missing in .env file');
+    }
+  }
 }

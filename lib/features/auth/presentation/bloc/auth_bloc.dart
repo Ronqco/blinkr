@@ -1,4 +1,5 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' as supabase;  // ← CAMBIAR ESTA LÍNEA
 import '../../domain/usecases/sign_in_usecase.dart';
 import '../../domain/usecases/sign_up_usecase.dart';
 import '../../domain/usecases/sign_out_usecase.dart';
@@ -19,6 +20,47 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<AuthSignInRequested>(_onSignInRequested);
     on<AuthSignUpRequested>(_onSignUpRequested);
     on<AuthSignOutRequested>(_onSignOutRequested);
+    on<AuthUpdateInterests>(_onUpdateInterests);
+  }
+
+  Future<void> _onUpdateInterests(
+    AuthUpdateInterests event,
+    Emitter<AuthState> emit,
+  ) async {
+    try {
+      final client = supabase.Supabase.instance.client;  // ← CAMBIAR
+      final userId = client.auth.currentUser?.id;
+      
+      if (userId == null) {
+        emit(const AuthError('Usuario no autenticado'));
+        return;
+      }
+
+      // Eliminar intereses anteriores
+      await client
+          .from('user_interests')
+          .delete()
+          .eq('user_id', userId);
+
+      // Insertar nuevos intereses
+      if (event.interests.isNotEmpty) {
+        final interestsData = event.interests
+            .map((categoryId) => {
+                  'user_id': userId,
+                  'category_id': categoryId,
+                })
+            .toList();
+
+        await client.from('user_interests').insert(interestsData);
+      }
+
+      // Mantener el estado actual
+      if (state is AuthAuthenticated) {
+        emit(state);
+      }
+    } catch (e) {
+      emit(AuthError('Error actualizando intereses: $e'));
+    }
   }
 
   Future<void> _onAuthCheckRequested(
@@ -26,8 +68,6 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     Emitter<AuthState> emit,
   ) async {
     emit(AuthLoading());
-    // Check if user is already authenticated
-    // This will be handled by auth state changes stream
     emit(AuthUnauthenticated());
   }
 

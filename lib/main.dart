@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'core/config/app_config.dart';
 import 'core/config/theme_config.dart';
 import 'core/router/app_router.dart';
@@ -19,10 +20,16 @@ import 'features/gamification/presentation/bloc/gamification_bloc.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
+  await dotenv.load(fileName: ".env");
+  print("Supabase URL: ${dotenv.env['SUPABASE_URL']}"); // Verifica que la URL se cargue correctamente
+  print("Supabase Anon Key: ${dotenv.env['SUPABASE_ANON_KEY']}"); // Verifica que la clave se cargue correctamente
+  
+  AppConfig.validateConfig();
+
   // Initialize Supabase
   await Supabase.initialize(
-    url: AppConfig.supabaseUrl,
-    anonKey: AppConfig.supabaseAnonKey,
+    url: dotenv.env['SUPABASE_URL']!,
+    anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
   );
   
   // Initialize Hive for local storage

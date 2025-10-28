@@ -1,4 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart'; // ✅ AÑADIR
+import '../../../../core/encryption/encryption_service.dart'; // ✅ AÑADIR
+import '../../../../core/storage/secure_storage_service.dart'; // ✅ AÑADIR
 import '../models/user_model.dart';
 
 abstract class AuthRemoteDataSource {
@@ -49,7 +52,6 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     required DateTime dateOfBirth,
     String? gender,
   }) async {
-    // Check if username is available
     final existingUser = await supabase
         .from('users')
         .select()
@@ -60,7 +62,6 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       throw Exception('Username already taken');
     }
 
-    // Sign up with Supabase Auth
     final response = await supabase.auth.signUp(
       email: email,
       password: password,
@@ -70,7 +71,11 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       throw Exception('Sign up failed');
     }
 
-    // Create user profile
+    // ✅ Generar claves de encriptación
+    final secureStorage = SecureStorageService(const FlutterSecureStorage());
+    final encryptionService = EncryptionService(secureStorage);
+    final keyPair = await encryptionService.generateKeyPair();
+
     final userProfile = {
       'id': response.user!.id,
       'email': email,
@@ -78,6 +83,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       'display_name': displayName,
       'date_of_birth': dateOfBirth.toIso8601String(),
       'gender': gender,
+      'public_key': keyPair['publicKey'],
     };
 
     await supabase.from('users').insert(userProfile);
@@ -113,10 +119,8 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
 
   @override
   Future<void> updateInterests(String userId, List<String> interests) async {
-    // Delete existing interests
     await supabase.from('user_interests').delete().eq('user_id', userId);
 
-    // Insert new interests
     if (interests.isNotEmpty) {
       final interestRecords = interests
           .map((categoryId) => {

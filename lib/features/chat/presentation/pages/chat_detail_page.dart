@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import '../../../../core/config/app_config.dart';
+import '../../../../core/services/ad_service.dart'; // ✅ AÑADIR
 
 class ChatDetailPage extends StatefulWidget {
   final String chatId;
@@ -17,69 +18,45 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
   
   bool _canSendMessage = true;
   int _messagesRemaining = 50;
-  RewardedAd? _rewardedAd;
 
   @override
   void initState() {
     super.initState();
-    _loadRewardedAd();
+    // AdService maneja la carga automáticamente
   }
 
   @override
   void dispose() {
     _messageController.dispose();
     _scrollController.dispose();
-    _rewardedAd?.dispose();
     super.dispose();
   }
 
-  void _loadRewardedAd() {
-    RewardedAd.load(
-      adUnitId: AppConfig.adUnitIdAndroid,
-      request: const AdRequest(),
-      rewardedAdLoadCallback: RewardedAdLoadCallback(
-        onAdLoaded: (ad) {
-          _rewardedAd = ad;
-        },
-        onAdFailedToLoad: (error) {
-          print('[v0] Failed to load rewarded ad: $error');
-        },
-      ),
-    );
-  }
-
-  void _showRewardedAd() {
-    if (_rewardedAd == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Anuncio no disponible')),
-      );
+  void _showRewardedAd() async {
+    final adService = AdService();
+    
+    if (!adService.isRewardedAdReady) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Anuncio no disponible')),
+        );
+      }
       return;
     }
 
-    _rewardedAd!.show(
-      onUserEarnedReward: (ad, reward) {
-        setState(() {
-          _messagesRemaining += AppConfig.messagesUnlockedPerAd;
-          _canSendMessage = true;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              '¡${AppConfig.messagesUnlockedPerAd} mensajes desbloqueados!',
-            ),
-          ),
-        );
-        _loadRewardedAd(); // Load next ad
-      },
-    );
-
-    _rewardedAd!.fullScreenContentCallback = FullScreenContentCallback(
-      onAdDismissedFullScreenContent: (ad) {
-        ad.dispose();
-        _rewardedAd = null;
-        _loadRewardedAd();
-      },
-    );
+    final success = await adService.showRewardedAd();
+    
+    if (success && mounted) {
+      setState(() {
+        _messagesRemaining += AppConfig.messagesUnlockedPerAd; // ✅ CORRECTO
+        _canSendMessage = true;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('¡${AppConfig.messagesUnlockedPerAd} mensajes desbloqueados!'),
+        ),
+      );
+    }
   }
 
   void _sendMessage() {
@@ -90,7 +67,6 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
       return;
     }
 
-    // TODO: Send message via BLoC
     setState(() {
       _messagesRemaining--;
       if (_messagesRemaining <= 0) {
@@ -122,9 +98,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
               ListTile(
                 leading: const Icon(Icons.ads_click),
                 title: const Text('Ver anuncio'),
-                subtitle: Text(
-                  '+${AppConfig.messagesUnlockedPerAd} mensajes',
-                ),
+                subtitle: Text('+${AppConfig.messagesUnlockedPerAd} mensajes'),
                 onTap: () {
                   Navigator.pop(context);
                   _showRewardedAd();
@@ -180,21 +154,18 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
         actions: [
           IconButton(
             icon: const Icon(Icons.more_vert),
-            onPressed: () {
-              // Show options
-            },
+            onPressed: () {},
           ),
         ],
       ),
       body: Column(
         children: [
-          // Message limit indicator
           if (!_canSendMessage || _messagesRemaining < 10)
             Container(
               padding: const EdgeInsets.all(12),
               color: _canSendMessage
-                  ? Colors.orange.withOpacity(0.1)
-                  : Colors.red.withOpacity(0.1),
+                  ? Colors.orange.withValues(alpha: 0.1)
+                  : Colors.red.withValues(alpha: 0.1),
               child: Row(
                 children: [
                   Icon(
@@ -223,26 +194,24 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
               ),
             ),
 
-          // Messages list
           Expanded(
             child: ListView.builder(
               controller: _scrollController,
               padding: const EdgeInsets.all(16),
-              itemCount: 0, // TODO: Get from BLoC
+              itemCount: 0,
               itemBuilder: (context, index) {
-                return const SizedBox(); // Message bubble
+                return const SizedBox();
               },
             ),
           ),
 
-          // Message input
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
               color: Theme.of(context).cardColor,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
+                  color: Colors.black.withValues(alpha: 0.05),
                   blurRadius: 4,
                   offset: const Offset(0, -2),
                 ),

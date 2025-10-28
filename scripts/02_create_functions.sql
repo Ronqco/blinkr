@@ -25,7 +25,7 @@ CREATE TRIGGER update_user_xp_updated_at BEFORE UPDATE ON user_xp
 
 -- Function to get nearby users
 CREATE OR REPLACE FUNCTION get_nearby_users(
-  user_location GEOGRAPHY,
+  user_location TEXT,
   radius_km FLOAT DEFAULT 50.0,
   limit_count INTEGER DEFAULT 50
 )
