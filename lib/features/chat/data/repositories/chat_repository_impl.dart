@@ -1,0 +1,173 @@
+import 'package:dartz/dartz.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../../core/error/failures.dart';
+import '../../../../core/encryption/encryption_service.dart';
+import '../../domain/entities/conversation_entity.dart';
+import '../../domain/entities/message_entity.dart';
+import '../../domain/entities/message_limit_entity.dart';
+import '../../domain/repositories/chat_repository.dart';
+import '../datasources/chat_remote_datasource.dart';
+
+class ChatRepositoryImpl implements ChatRepository {
+  final ChatRemoteDataSource remoteDataSource;
+  final EncryptionService encryptionService;
+  final SupabaseClient supabase;
+
+  ChatRepositoryImpl(
+    this.remoteDataSource,
+    this.encryptionService,
+    this.supabase,
+  );
+
+  @override
+  Future<Either<Failure, List<ConversationEntity>>> getConversations() async {
+    try {
+      final userId = supabase.auth.currentUser?.id;
+      if (userId == null) {
+        return const Left(ServerFailure('User not authenticated'));
+      }
+
+      final conversations = await remoteDataSource.getConversations(userId);
+      return Right(conversations);
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, ConversationEntity>> getOrCreateConversation(
+    String otherUserId,
+  ) async {
+    try {
+      final userId = supabase.auth.currentUser?.id;
+      if (userId == null) {
+        return const Left(ServerFailure('User not authenticated'));
+      }
+
+      final conversation = await remoteDataSource.getOrCreateConversation(
+        userId: userId,
+        otherUserId: otherUserId,
+      );
+      return Right(conversation);
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, List<MessageEntity>>> getMessages(
+    String conversationId,
+  ) async {
+    try {
+      final messages = await remoteDataSource.getMessages(conversationId);
+      return Right(messages);
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, MessageEntity>> sendMessage({
+    required String conversationId,
+    required String content,
+  }) async {
+    try {
+      final userId = supabase.auth.currentUser?.id;
+      if (userId == null) {
+        return const Left(ServerFailure('User not authenticated'));
+      }
+
+      // Check message limit
+      final limitResult = await getMessageLimit();
+      final canSend = limitResult.fold(
+        (failure) => false,
+        (limit) => limit.canSend,
+      );
+
+      if (!canSend) {
+        return const Left(ServerFailure('Message limit reached'));
+      }
+
+      // Encrypt message
+      // For simplicity, using a shared key approach
+      // In production, use proper E2E encryption with recipient's public key
+      final encryptedContent = encryptionService.encryptMessage(
+        content,
+        'shared_key', // TODO: Get from conversation
+      );
+
+      final message = await remoteDataSource.sendMessage(
+        userId: userId,
+        conversationId: conversationId,
+        encryptedContent: encryptedContent,
+        encryptionIv: 'iv', // TODO: Generate proper IV
+      );
+
+      return Right(message);
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> markAsRead(String conversationId) async {
+    try {
+      final userId = supabase.auth.currentUser?.id;
+      if (userId == null) {
+        return const Left(ServerFailure('User not authenticated'));
+      }
+
+      await remoteDataSource.markAsRead(conversationId, userId);
+      return const Right(null);
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, MessageLimitEntity>> getMessageLimit() async {
+    try {
+      final userId = supabase.auth.currentUser?.id;
+      if (userId == null) {
+        return const Left(ServerFailure('User not authenticated'));
+      }
+
+      final result = await remoteDataSource.getMessageLimit(userId);
+
+      return Right(MessageLimitEntity(
+        messagesSent: 0, // TODO: Get from result
+        messagesUnlockedByAds: 0,
+        messagesRemaining: result['messages_remaining'] as int,
+        canSend: result['can_send'] as bool,
+      ));
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, MessageLimitEntity>> unlockMessagesByAd() async {
+    try {
+      final userId = supabase.auth.currentUser?.id;
+      if (userId == null) {
+        return const Left(ServerFailure('User not authenticated'));
+      }
+
+      final unlockedCount = await remoteDataSource.unlockMessagesByAd(userId);
+
+      return Right(MessageLimitEntity(
+        messagesSent: 0,
+        messagesUnlockedByAds: unlockedCount,
+        messagesRemaining: unlockedCount,
+        canSend: true,
+      ));
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Stream<MessageEntity> subscribeToMessages(String conversationId) {
+    return remoteDataSource.subscribeToMessages(conversationId);
+  }
+}

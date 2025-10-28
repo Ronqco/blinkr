@@ -1,0 +1,97 @@
+name: blinkr
+description: Blinkr V2 - Social network with proximity discovery and interest-based feeds
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  
+  # Supabase
+  supabase_flutter: ^2.10.3
+  
+  # State Management
+  flutter_bloc: ^9.1.1
+  equatable: ^2.0.5
+  
+  # Functional Programming (FALTABA ESTO)
+  dartz: ^0.10.1
+  
+  # Dependency Injection (FALTABA ESTO)
+  get_it: ^8.2.0
+  
+  # Geolocation
+  geolocator: ^14.0.2
+  geocoding: ^4.0.0
+  
+  # E2E Encryption
+  encrypt: ^5.0.3
+  pointycastle: ^3.7.3
+  cryptography: ^2.5.0
+  
+  # Secure Storage
+  flutter_secure_storage: ^9.0.0
+  
+  # UI Components
+  cached_network_image: ^3.3.0
+  flutter_svg: ^2.0.9
+  shimmer: ^3.0.0
+  
+  # Navigation
+  go_router: ^16.3.0
+  
+  # Utilities
+  intl: ^0.20.2
+  uuid: ^4.2.1
+  timeago: ^3.6.0
+  
+  # Ads
+  google_mobile_ads: ^6.0.0
+  
+  # In-App Purchases
+  in_app_purchase: ^3.1.11
+  
+  # Image Handling
+  image_picker: ^1.0.5
+  image_cropper: ^11.0.0
+  
+  # HTTP
+  http: ^1.1.0
+  
+  # Local Database
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+  
+  # Permissions
+  permission_handler: ^12.0.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  build_runner: ^2.4.6
+  hive_generator: ^2.0.1
+
+flutter:
+  uses-material-design: true
+  
+  # Comentamos los assets que no existen por ahora
+  # assets:
+  #   - assets/images/
+  #   - assets/icons/
+  #   - assets/animations/
+  
+  # Comentamos las fuentes que no existen por ahora
+  # fonts:
+  #   - family: Inter
+  #     fonts:
+  #       - asset: assets/fonts/Inter-Regular.ttf
+  #       - asset: assets/fonts/Inter-Medium.ttf
+  #         weight: 500
+  #       - asset: assets/fonts/Inter-SemiBold.ttf
+  #         weight: 600
+  #       - asset: assets/fonts/Inter-Bold.ttf
+  #         weight: 700
