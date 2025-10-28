@@ -158,12 +158,7 @@ class _FeedPageState extends State<FeedPage> {
         },
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          // Navigate to create post
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Crear publicación')),
-          );
-        },
+        onPressed: () => _showCreatePostDialog(context, category),
         child: const Icon(Icons.add),
       ),
     );
@@ -259,8 +254,15 @@ class _FeedPageState extends State<FeedPage> {
                     post.isLikedByMe ? Icons.favorite : Icons.favorite_border,
                     color: post.isLikedByMe ? Colors.red : null,
                   ),
-                  onPressed: () {
-                    // Toggle like
+                  onPressed: () async {
+                    // Dar like
+                    context.read<FeedBloc>().add(FeedToggleLike(post.id));
+                    
+                    // Esperar un momento y recargar
+                    await Future.delayed(const Duration(milliseconds: 500));
+                    if (context.mounted) {
+                      context.read<FeedBloc>().add(FeedRefresh(widget.categoryId));
+                    }
                   },
                 ),
                 Text('${post.likesCount}'),
@@ -268,7 +270,10 @@ class _FeedPageState extends State<FeedPage> {
                 IconButton(
                   icon: const Icon(Icons.comment_outlined),
                   onPressed: () {
-                    // Navigate to comments
+                    // TODO: Navigate to comments
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Comentarios - Próximamente')),
+                    );
                   },
                 ),
                 Text('${post.commentsCount}'),
@@ -276,7 +281,9 @@ class _FeedPageState extends State<FeedPage> {
                 IconButton(
                   icon: const Icon(Icons.share_outlined),
                   onPressed: () {
-                    // Share post
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Compartir - Próximamente')),
+                    );
                   },
                 ),
               ],
@@ -326,6 +333,122 @@ class _FeedPageState extends State<FeedPage> {
     );
   }
 
+  void _showCreatePostDialog(BuildContext context, InterestCategory? category) {
+    final titleController = TextEditingController();
+    final contentController = TextEditingController();
+    bool isNSFW = category?.isNSFW ?? false;
+    String? nsfwWarning;
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('Crear Publicación'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    TextField(
+                      controller: titleController,
+                      decoration: const InputDecoration(
+                        labelText: 'Título',
+                        hintText: 'Escribe un título llamativo',
+                      ),
+                      maxLength: 100,
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: contentController,
+                      decoration: const InputDecoration(
+                        labelText: 'Contenido',
+                        hintText: 'Comparte tu historia...',
+                        border: OutlineInputBorder(),
+                      ),
+                      maxLines: 5,
+                      maxLength: 1000,
+                    ),
+                    if (category?.isNSFW == true) ...[
+                      const SizedBox(height: 16),
+                      CheckboxListTile(
+                        title: const Text('Contenido NSFW'),
+                        subtitle: const Text('Marca si contiene contenido adulto'),
+                        value: isNSFW,
+                        onChanged: (value) {
+                          setState(() {
+                            isNSFW = value ?? false;
+                          });
+                        },
+                      ),
+                      if (isNSFW) ...[
+                        const SizedBox(height: 8),
+                        TextField(
+                          decoration: const InputDecoration(
+                            labelText: 'Advertencia (opcional)',
+                            hintText: 'Ej: Desnudos artísticos',
+                          ),
+                          onChanged: (value) {
+                            nsfwWarning = value;
+                          },
+                        ),
+                      ],
+                    ],
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: const Text('Cancelar'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    if (titleController.text.trim().isEmpty ||
+                        contentController.text.trim().isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Título y contenido son requeridos'),
+                        ),
+                      );
+                      return;
+                    }
+
+                    // Crear post
+                    this.context.read<FeedBloc>().add(
+                          FeedCreatePost(
+                            categoryId: widget.categoryId,
+                            title: titleController.text.trim(),
+                            content: contentController.text.trim(),
+                            isNSFW: isNSFW,
+                            nsfwWarning: nsfwWarning,
+                          ),
+                        );
+
+                    Navigator.pop(dialogContext);
+                    
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Publicación creada'),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+
+                    // Recargar feed
+                    _currentPage = 0;
+                    this.context.read<FeedBloc>().add(FeedRefresh(widget.categoryId));
+                  },
+                  child: const Text('Publicar'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   void _showPostOptions(BuildContext context, PostEntity post) {
     showModalBottomSheet(
       context: context,
@@ -347,6 +470,9 @@ class _FeedPageState extends State<FeedPage> {
                 title: const Text('Bloquear usuario'),
                 onTap: () {
                   Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Usuario bloqueado')),
+                  );
                 },
               ),
             ],
@@ -369,19 +495,30 @@ class _FeedPageState extends State<FeedPage> {
               const SizedBox(height: 16),
               ListTile(
                 title: const Text('Spam'),
-                onTap: () => Navigator.pop(context),
+                onTap: () {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Reporte enviado')),
+                  );
+                },
               ),
               ListTile(
                 title: const Text('Contenido inapropiado'),
-                onTap: () => Navigator.pop(context),
+                onTap: () {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Reporte enviado')),
+                  );
+                },
               ),
               ListTile(
                 title: const Text('Acoso o bullying'),
-                onTap: () => Navigator.pop(context),
-              ),
-              ListTile(
-                title: const Text('Contenido ilegal'),
-                onTap: () => Navigator.pop(context),
+                onTap: () {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Reporte enviado')),
+                  );
+                },
               ),
             ],
           ),

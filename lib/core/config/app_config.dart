@@ -2,12 +2,12 @@ class AppConfig {
   // Supabase Configuration
   static const String supabaseUrl = String.fromEnvironment(
     'SUPABASE_URL',
-    defaultValue: 'https://xjmcetsxojlbylsjwknf.supabase.co',
+    defaultValue: 'https://ppbjuicqobgzvadfxuap.supabase.co',
   );
   
   static const String supabaseAnonKey = String.fromEnvironment(
     'SUPABASE_ANON_KEY',
-    defaultValue: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhqbWNldHN4b2psYnlsc2p3a25mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE2MTE3NzIsImV4cCI6MjA3NzE4Nzc3Mn0.b_Gqx7_dw-ffDeDEoodaqrdIJ_vS9UVTCJG-TRzHPAw',
+    defaultValue: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBwYmp1aWNxb2JnenZhZGZ4dWFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE2MjIyODksImV4cCI6MjA3NzE5ODI4OX0.dng6b8H8wEnfUDGpeVlzccDAmkW3OulK_KgFthUvDuQ',
   );
   
   // App Configuration

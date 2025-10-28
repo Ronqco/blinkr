@@ -47,50 +47,39 @@ class FeedRemoteDataSourceImpl implements FeedRemoteDataSource {
   FeedRemoteDataSourceImpl(this.supabase);
 
   @override
-  Future<List<PostModel>> getFeedPosts({
-    required String categoryId,
-    int page = 0,
-    int limit = 20,
-  }) async {
-    final currentUserId = supabase.auth.currentUser?.id;
+  @override
+Future<List<PostModel>> getFeedPosts({
+  required String categoryId,
+  int page = 0,
+  int limit = 20,
+}) async {
+  var query = supabase
+      .from('posts')
+      .select('''
+        *,
+        author:users!posts_user_id_fkey(id, username, display_name, avatar_url),
+        category:interest_categories!posts_category_id_fkey(id, name, icon)
+      ''');
 
-    final response = await supabase
-        .from('posts')
-        .select('''
-          *,
-          users!inner(username, display_name, avatar_url)
-        ''')
-        .eq('category_id', categoryId)
-        .eq('is_active', true)
-        .order('created_at', ascending: false)
-        .range(page * limit, (page + 1) * limit - 1);
-
-    final posts = await Future.wait(
-      (response as List<dynamic>).map((postData) async {
-        // Check if user liked this post
-        bool isLikedByMe = false;
-        if (currentUserId != null) {
-          final likeCheck = await supabase
-              .from('likes')
-              .select()
-              .eq('user_id', currentUserId)
-              .eq('post_id', postData['id'])
-              .maybeSingle();
-          isLikedByMe = likeCheck != null;
-        }
-
-        return PostModel.fromJson({
-          ...postData,
-          'username': postData['users']['username'],
-          'display_name': postData['users']['display_name'],
-          'avatar_url': postData['users']['avatar_url'],
-          'is_liked_by_me': isLikedByMe,
-        });
-      }),
-    );
-
-    return posts;
+  // Solo filtrar por categoría si no es "all"
+  if (categoryId != 'all') {
+    query = query.eq('category_id', categoryId);
   }
+
+  final response = await query
+      .order('created_at', ascending: false)
+      .range(page * limit, (page + 1) * limit - 1);
+
+  return (response as List<dynamic>).map((post) {
+    return PostModel.fromJson({
+      ...post,
+      'user_id': post['author']['id'],
+      'display_name': post['author']['display_name'],
+      'avatar_url': post['author']['avatar_url'],
+      'category_id': post['category_id'],
+    });
+  }).toList();
+}
 
   @override
   Future<PostModel> createPost({

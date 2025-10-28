@@ -84,22 +84,25 @@ Future<void> setupServiceLocator() async {
   getIt.registerLazySingleton(() => GetNearbyUsersUseCase(getIt()));
   getIt.registerFactory(() => DiscoveryBloc(getNearbyUsersUseCase: getIt()));
   
-  // Feed Feature - CORREGIDO
+  // Feed Feature - CORREGIDO: Agregar repository al FeedBloc
   getIt.registerLazySingleton<FeedRemoteDataSource>(
     () => FeedRemoteDataSourceImpl(getIt()),
   );
   getIt.registerLazySingleton<FeedRepository>(
-    () => FeedRepositoryImpl(getIt(), getIt()),  // ← Agregado segundo parámetro
+    () => FeedRepositoryImpl(getIt(), getIt()),
   );
   getIt.registerLazySingleton(() => GetFeedPostsUseCase(getIt()));
-  getIt.registerFactory(() => FeedBloc(getFeedPostsUseCase: getIt()));
+  getIt.registerFactory(() => FeedBloc(
+    getFeedPostsUseCase: getIt(),
+    repository: getIt(), // ← AGREGADO
+  ));
   
-  // Chat Feature - CORREGIDO
+  // Chat Feature
   getIt.registerLazySingleton<ChatRemoteDataSource>(
-    () => ChatRemoteDataSourceImpl(getIt(), getIt()),  // ← Agregado segundo parámetro
+    () => ChatRemoteDataSourceImpl(getIt(), getIt()),
   );
   getIt.registerLazySingleton<ChatRepository>(
-    () => ChatRepositoryImpl(getIt(), getIt(), getIt()),  // ← Agregado tercer parámetro
+    () => ChatRepositoryImpl(getIt(), getIt(), getIt()),
   );
   getIt.registerLazySingleton(() => SendMessageUseCase(getIt()));
   getIt.registerFactory(() => ChatBloc(sendMessageUseCase: getIt()));

@@ -1,14 +1,21 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../domain/usecases/get_feed_posts_usecase.dart';
+import '../../domain/repositories/feed_repository.dart';
 import 'feed_event.dart';
 import 'feed_state.dart';
 
 class FeedBloc extends Bloc<FeedEvent, FeedState> {
   final GetFeedPostsUseCase getFeedPostsUseCase;
+  final FeedRepository repository;
 
-  FeedBloc({required this.getFeedPostsUseCase}) : super(FeedInitial()) {
+  FeedBloc({
+    required this.getFeedPostsUseCase,
+    required this.repository,
+  }) : super(FeedInitial()) {
     on<FeedLoadPosts>(_onLoadPosts);
     on<FeedRefresh>(_onRefresh);
+    on<FeedCreatePost>(_onCreatePost);
+    on<FeedToggleLike>(_onToggleLike);
   }
 
   Future<void> _onLoadPosts(
@@ -45,5 +52,62 @@ class FeedBloc extends Bloc<FeedEvent, FeedState> {
     Emitter<FeedState> emit,
   ) async {
     add(FeedLoadPosts(categoryId: event.categoryId, page: 0));
+  }
+
+  Future<void> _onCreatePost(
+    FeedCreatePost event,
+    Emitter<FeedState> emit,
+  ) async {
+    // Mantener el estado actual mientras se crea el post
+    final currentState = state;
+
+    final result = await repository.createPost(
+      categoryId: event.categoryId,
+      title: event.title,
+      content: event.content,
+      imageUrls: event.imageUrls,
+      isNSFW: event.isNSFW,
+      nsfwWarning: event.nsfwWarning,
+    );
+
+    result.fold(
+      (failure) {
+        // Si falla, mostrar error pero mantener posts actuales
+        if (currentState is FeedLoaded) {
+          emit(currentState);
+        }
+        emit(FeedError(failure.message));
+      },
+      (newPost) {
+        // Agregar el nuevo post al inicio de la lista
+        if (currentState is FeedLoaded) {
+          emit(FeedLoaded(
+            posts: [newPost, ...currentState.posts],
+            hasMore: currentState.hasMore,
+          ));
+        } else {
+          emit(FeedLoaded(posts: [newPost], hasMore: true));
+        }
+      },
+    );
+  }
+
+  Future<void> _onToggleLike(
+    FeedToggleLike event,
+    Emitter<FeedState> emit,
+  ) async {
+    // Hacer la llamada al backend
+    final result = await repository.toggleLike(event.postId);
+
+    result.fold(
+      (failure) {
+        // Si falla, mostrar error en snackbar (manejado en UI)
+        print('Error toggling like: ${failure.message}');
+      },
+      (_) {
+        // Éxito - no hacer nada, el UI se actualizará cuando recargue
+        // La UI debería mostrar feedback visual inmediato
+      },
+    );
   }
 }

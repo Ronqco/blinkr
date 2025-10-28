@@ -22,7 +22,10 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
   @override
   void initState() {
     super.initState();
-    context.read<DiscoveryBloc>().add(const DiscoveryLoadNearbyUsers());
+    // CAMBIO 1: Asegurarse de cargar usuarios al iniciar
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<DiscoveryBloc>().add(const DiscoveryLoadNearbyUsers());
+    });
   }
 
   @override
@@ -51,6 +54,13 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
                   const Icon(Icons.error_outline, size: 64, color: Colors.grey),
                   const SizedBox(height: 16),
                   Text(state.message),
+                  const SizedBox(height: 8),
+                  // CAMBIO 2: Mostrar más detalles del error
+                  Text(
+                    'Verifica que tienes permisos de ubicación',
+                    style: Theme.of(context).textTheme.bodySmall,
+                    textAlign: TextAlign.center,
+                  ),
                   const SizedBox(height: 16),
                   ElevatedButton(
                     onPressed: () {
@@ -76,8 +86,19 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
                     const Text('No hay usuarios cercanos'),
                     const SizedBox(height: 8),
                     Text(
+                      'Radio actual: ${_radiusKm.toInt()} km',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
                       'Intenta ampliar el radio de búsqueda',
                       style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton.icon(
+                      onPressed: _showFilterDialog,
+                      icon: const Icon(Icons.tune),
+                      label: const Text('Ajustar filtros'),
                     ),
                   ],
                 ),
@@ -139,12 +160,15 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
                       children: [
                         Row(
                           children: [
-                            Text(
-                              user.displayName,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleMedium
-                                  ?.copyWith(fontWeight: FontWeight.w600),
+                            Flexible(
+                              child: Text(
+                                user.displayName,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .titleMedium
+                                    ?.copyWith(fontWeight: FontWeight.w600),
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
                             if (user.isPremium) ...[
                               const SizedBox(width: 4),
@@ -259,10 +283,8 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
                   Expanded(
                     child: ElevatedButton.icon(
                       onPressed: () {
-                        // Start chat
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Iniciar chat')),
-                        );
+                        // CAMBIO 3: Navegar a crear conversación
+                        _startChat(context, user);
                       },
                       icon: const Icon(Icons.chat_bubble_outline, size: 18),
                       label: const Text('Chatear'),
@@ -277,53 +299,68 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
     );
   }
 
+  // CAMBIO 4: Función para iniciar chat
+  void _startChat(BuildContext context, NearbyUserEntity user) {
+    // Navegar a la página de chat con el usuario
+    context.push('/chat/new?userId=${user.id}&userName=${user.displayName}');
+  }
+
   void _showFilterDialog() {
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setState) {
-            return Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Filtros',
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                  const SizedBox(height: 24),
-                  
-                  Text('Radio de búsqueda: ${_radiusKm.toInt()} km'),
-                  Slider(
-                    value: _radiusKm,
-                    min: 5,
-                    max: 100,
-                    divisions: 19,
-                    label: '${_radiusKm.toInt()} km',
-                    onChanged: (value) {
-                      setState(() {
-                        _radiusKm = value;
-                      });
-                    },
-                  ),
-                  
-                  const SizedBox(height: 24),
-                  
-                  ElevatedButton(
-                    onPressed: () {
-                      Navigator.pop(context);
-                      this.context.read<DiscoveryBloc>().add(
-                            DiscoveryLoadNearbyUsers(
-                              radiusKm: _radiusKm,
-                              filterByInterests: _selectedInterests,
-                            ),
-                          );
-                    },
-                    child: const Text('Aplicar filtros'),
-                  ),
-                ],
+            return Container(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Filtros',
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                    const SizedBox(height: 24),
+                    
+                    Text('Radio de búsqueda: ${_radiusKm.toInt()} km'),
+                    Slider(
+                      value: _radiusKm,
+                      min: 5,
+                      max: 100,
+                      divisions: 19,
+                      label: '${_radiusKm.toInt()} km',
+                      onChanged: (value) {
+                        setState(() {
+                          _radiusKm = value;
+                        });
+                      },
+                    ),
+                    
+                    const SizedBox(height: 24),
+                    
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          this.context.read<DiscoveryBloc>().add(
+                                DiscoveryLoadNearbyUsers(
+                                  radiusKm: _radiusKm,
+                                  filterByInterests: _selectedInterests,
+                                ),
+                              );
+                        },
+                        child: const Text('Aplicar filtros'),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             );
           },

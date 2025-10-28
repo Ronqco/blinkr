@@ -62,6 +62,12 @@ class EncryptionService {
     return decrypted;
   }
 
+ // Generate a random IV for AES encryption
+  String generateIV() {
+  final iv = encrypt.IV.fromLength(16);
+  return iv.base64;
+}
+
   // Symmetric encryption for shared keys
   String encryptWithSharedKey(String message, String sharedKey) {
     final key = encrypt.Key.fromBase64(sharedKey);
