@@ -107,7 +107,7 @@ class _GamificationPageState extends State<GamificationPage> with SingleTickerPr
               labelText: 'Select Category',
               border: OutlineInputBorder(),
             ),
-            value: _selectedCategoryId,
+            initialValue: _selectedCategoryId,
             items: InterestCategories.allCategories.map((category) {
               return DropdownMenuItem(
                 value: category.id,
@@ -179,7 +179,7 @@ class _GamificationPageState extends State<GamificationPage> with SingleTickerPr
               labelText: 'Select Category',
               border: OutlineInputBorder(),
             ),
-            value: _selectedCategoryId,
+            initialValue: _selectedCategoryId,
             items: InterestCategories.allCategories.map((category) {
               return DropdownMenuItem(
                 value: category.id,

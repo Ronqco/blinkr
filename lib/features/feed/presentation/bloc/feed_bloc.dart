@@ -13,9 +13,11 @@ class FeedBloc extends Bloc<FeedEvent, FeedState> {
     required this.repository,
   }) : super(FeedInitial()) {
     on<FeedLoadPosts>(_onLoadPosts);
+    on<FeedLoadCompetitive>(_onLoadCompetitive);
     on<FeedRefresh>(_onRefresh);
     on<FeedCreatePost>(_onCreatePost);
     on<FeedToggleLike>(_onToggleLike);
+    on<FeedSharePost>(_onSharePost);
   }
 
   Future<void> _onLoadPosts(
@@ -44,6 +46,22 @@ class FeedBloc extends Bloc<FeedEvent, FeedState> {
           emit(FeedLoaded(posts: posts, hasMore: posts.isNotEmpty));
         }
       },
+    );
+  }
+
+  Future<void> _onLoadCompetitive(
+    FeedLoadCompetitive event,
+    Emitter<FeedState> emit,
+  ) async {
+    emit(FeedLoading());
+
+    final result = await repository.getCompetitiveFeed(
+      categoryId: event.categoryId,
+    );
+
+    result.fold(
+      (failure) => emit(FeedError(failure.message)),
+      (posts) => emit(FeedCompetitiveLoaded(posts)),
     );
   }
 
@@ -110,4 +128,21 @@ class FeedBloc extends Bloc<FeedEvent, FeedState> {
       },
     );
   }
+
+  Future<void> _onSharePost(
+    FeedSharePost event,
+    Emitter<FeedState> emit,
+  ) async {
+    final result = await repository.sharePost(event.postId);
+
+    result.fold(
+      (failure) {
+        print('Error sharing post: ${failure.message}');
+      },
+      (_) {
+        // Éxito - el share se registró
+      },
+    );
+  }
+
 }

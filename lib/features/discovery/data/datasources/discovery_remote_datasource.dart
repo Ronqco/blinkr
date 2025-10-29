@@ -1,3 +1,7 @@
+// 🔧 CAMBIOS:
+// - Líneas 40-120: ELIMINADO loop con N queries
+// - Líneas 40-80: NUEVO llamado a función SQL optimizada
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/nearby_user_model.dart';
 
@@ -34,55 +38,28 @@ class DiscoveryRemoteDataSourceImpl implements DiscoveryRemoteDataSource {
     }
 
     try {
-      // Obtener intereses del usuario actual
-      final currentUserInterestsResponse = await supabase
-          .from('user_interests')
-          .select('category_id')
-          .eq('user_id', currentUserId);
-
-      final myInterests = (currentUserInterestsResponse as List<dynamic>)
-          .map((e) => e['category_id'] as String)
-          .toSet();
-
-      // Llamar a la función Postgres get_nearby_users()
+      // ✅ CORREGIDO: Una sola llamada SQL optimizada
       final response = await supabase.rpc(
-        'get_nearby_users',
+        'get_nearby_users_optimized',
         params: {
-          'user_location': 'SRID=4326;POINT($longitude $latitude)',
-          'radius_km': radiusKm,
-          'limit_count': 50,
+          'p_user_id': currentUserId,
+          'p_user_lat': latitude,
+          'p_user_lon': longitude,
+          'p_radius_km': radiusKm,
+          'p_limit': 50,
         },
       );
 
       if (response == null || response is! List) {
-        throw Exception('Invalid response from get_nearby_users');
+        throw Exception('Invalid response from get_nearby_users_optimized');
       }
 
-      // Procesar los usuarios obtenidos
-      final users = response.map((userData) async {
-        final userId = userData['id'] as String?;
-
-        if (userId == null) return null;
-
-        // Obtener intereses de cada usuario cercano
-        final interestsResponse = await supabase
-            .from('user_interests')
-            .select('category_id')
-            .eq('user_id', userId);
-
-        final userInterests = (interestsResponse as List<dynamic>)
-            .map((e) => e['category_id'] as String)
-            .toList();
-
-        // Calcular intereses en común
-        final commonInterests =
-            userInterests.where((i) => myInterests.contains(i)).toList();
-
-        // Calcular edad
-        final dateOfBirthStr = userData['date_of_birth'];
+      // ✅ NUEVO: Mapeo directo sin queries adicionales
+      final users = (response).map((userData) {
+        // Calcular edad desde date_of_birth
         int age = 0;
-        if (dateOfBirthStr != null) {
-          final dateOfBirth = DateTime.tryParse(dateOfBirthStr);
+        if (userData['date_of_birth'] != null) {
+          final dateOfBirth = DateTime.tryParse(userData['date_of_birth']);
           if (dateOfBirth != null) {
             final now = DateTime.now();
             age = now.year - dateOfBirth.year;
@@ -94,30 +71,28 @@ class DiscoveryRemoteDataSourceImpl implements DiscoveryRemoteDataSource {
         }
 
         return NearbyUserModel.fromJson({
-          ...userData,
+          'id': userData['id'],
+          'username': userData['username'],
+          'display_name': userData['display_name'],
+          'avatar_url': userData['avatar_url'],
+          'bio': userData['bio'],
           'age': age,
-          'interests': userInterests,
-          'common_interests': commonInterests,
+          'distance_km': userData['distance_km'],
+          'is_premium': userData['is_premium'] ?? false,
+          'last_seen_at': userData['last_seen_at'],
+          'interests': List<String>.from(userData['interests'] ?? []),
+          'common_interests': List<String>.from(userData['common_interests'] ?? []),
         });
       }).toList();
 
-      // Esperar a que se resuelvan todas las llamadas
-      final resolvedUsers = (await Future.wait(users)).whereType<NearbyUserModel>().toList();
-
-      // Filtro opcional por intereses
-      List<NearbyUserModel> filteredUsers = resolvedUsers;
+      // ✅ NUEVO: Filtro opcional por intereses (ya pre-calculados)
       if (filterByInterests != null && filterByInterests.isNotEmpty) {
-        filteredUsers = resolvedUsers
-            .where((user) => user.interests
-                .any((interest) => filterByInterests.contains(interest)))
-            .toList();
+        return users.where((user) => 
+          user.interests.any((interest) => filterByInterests.contains(interest))
+        ).toList();
       }
 
-      // Ordenar por número de intereses en común (descendente)
-      filteredUsers.sort((a, b) =>
-          b.commonInterests.length.compareTo(a.commonInterests.length));
-
-      return filteredUsers;
+      return users;
     } catch (e) {
       throw Exception('Error fetching nearby users: $e');
     }

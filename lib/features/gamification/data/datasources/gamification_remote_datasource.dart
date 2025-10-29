@@ -47,6 +47,7 @@ class GamificationRemoteDataSourceImpl implements GamificationRemoteDataSource {
     });
   }
 
+  @override
   Future<List<AchievementModel>> getUserAchievements(
   String userId, 
   String categoryId
@@ -79,7 +80,7 @@ class GamificationRemoteDataSourceImpl implements GamificationRemoteDataSource {
       'icon_url': json['icon_url'],
       'required_xp': json['required_xp'],
       'is_unlocked': isUnlocked,
-      'unlocked_at': isUnlocked && userAchievements!.isNotEmpty
+      'unlocked_at': isUnlocked && userAchievements.isNotEmpty
           ? userAchievements.first['unlocked_at']
           : null,
     });

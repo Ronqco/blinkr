@@ -1,3 +1,6 @@
+// 📁 lib/features/feed/presentation/bloc/feed_event.dart
+// ✅ ELIMINAR las definiciones duplicadas de FeedToggleLike, FeedCreatePost
+
 import 'package:equatable/equatable.dart';
 
 abstract class FeedEvent extends Equatable {
@@ -20,10 +23,28 @@ class FeedLoadPosts extends FeedEvent {
   List<Object> get props => [categoryId, page];
 }
 
+class FeedLoadCompetitive extends FeedEvent {
+  final String? categoryId;
+
+  const FeedLoadCompetitive({this.categoryId});
+
+  @override
+  List<Object?> get props => [categoryId];
+}
+
 class FeedToggleLike extends FeedEvent {
   final String postId;
 
   const FeedToggleLike(this.postId);
+
+  @override
+  List<Object> get props => [postId];
+}
+
+class FeedSharePost extends FeedEvent {
+  final String postId;
+
+  const FeedSharePost(this.postId);
 
   @override
   List<Object> get props => [postId];
@@ -64,4 +85,4 @@ class FeedRefresh extends FeedEvent {
 
   @override
   List<Object> get props => [categoryId];
-}
+  }

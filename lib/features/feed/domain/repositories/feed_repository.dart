@@ -31,6 +31,11 @@ abstract class FeedRepository {
   });
 
   Future<Either<Failure, void>> deleteComment(String commentId);
+  
+  Future<Either<Failure, List<CompetitivePostEntity>>> getCompetitiveFeed({
+    String? categoryId,
+    int limit = 50,
+  });
 
   Future<Either<Failure, void>> reportPost({
     required String postId,

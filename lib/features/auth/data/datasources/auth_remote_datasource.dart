@@ -72,9 +72,9 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     }
 
     // ✅ Generar claves de encriptación
-    final secureStorage = SecureStorageService(const FlutterSecureStorage());
-    final encryptionService = EncryptionService(secureStorage);
+    final encryptionService = getIt<EncryptionService>();
     final keyPair = await encryptionService.generateKeyPair();
+
 
     final userProfile = {
       'id': response.user!.id,

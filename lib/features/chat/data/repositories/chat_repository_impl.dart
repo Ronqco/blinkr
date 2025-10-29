@@ -73,53 +73,68 @@ Future<Either<Failure, List<MessageEntity>>> getMessages(
 
   // chat_repository_impl.dart - sendMessage
 @override
-Future<Either<Failure, MessageEntity>> sendMessage({
-  required String conversationId,
-  required String content,
-}) async {
-  try {
-    final userId = supabase.auth.currentUser?.id;
-    if (userId == null) {
-      return const Left(ServerFailure('User not authenticated'));
+  Future<Either<Failure, MessageEntity>> sendMessage({
+    required String conversationId,
+    required String content,
+  }) async {
+    try {
+      final userId = supabase.auth.currentUser?.id;
+      if (userId == null) {
+        return const Left(ServerFailure('User not authenticated'));
+      }
+
+      // PASO 1: Obtener conversación para determinar el destinatario
+      final conversationData = await supabase
+          .from('conversations')
+          .select()
+          .eq('id', conversationId)
+          .single();
+      
+      final isUser1 = conversationData['user1_id'] == userId;
+      final recipientId = isUser1 
+          ? conversationData['user2_id'] 
+          : conversationData['user1_id'];
+      
+      // PASO 2: Obtener clave pública del destinatario
+      final recipientPublicKey = await _getRecipientPublicKey(recipientId);
+      
+      // PASO 3: Generar clave AES aleatoria
+      final aesKey = encryptionService.generateAESKey();
+      
+      // PASO 4: Encriptar mensaje con AES-GCM
+      final aesEncrypted = encryptionService.encryptWithAES(content, aesKey);
+      
+      // PASO 5: Encriptar clave AES con RSA del destinatario
+      final encryptedAESKey = encryptionService.encryptWithRSA(
+        aesKey,
+        recipientPublicKey,
+      );
+
+      // PASO 6: Enviar mensaje con ambos cifrados
+      final message = await remoteDataSource.sendMessage(
+        userId: userId,
+        conversationId: conversationId,
+        encryptedContent: aesEncrypted['ciphertext']!,
+        encryptionIv: aesEncrypted['iv']!,
+        encryptedAESKey: encryptedAESKey, // 🔧 NUEVO parámetro
+      );
+
+      return Right(message);
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
     }
-
-    // 1. Obtener conversación para determinar el destinatario
-    final conversationData = await supabase
-        .from('conversations')
-        .select()
-        .eq('id', conversationId)
-        .single();
-    
-    // 2. Determinar quién es el destinatario
-    final isUser1 = conversationData['user1_id'] == userId;
-    final recipientId = isUser1 
-        ? conversationData['user2_id'] 
-        : conversationData['user1_id'];
-    
-    // 3. Obtener clave pública del destinatario
-    final recipientPublicKey = await _getRecipientPublicKey(recipientId);
-    
-    // 4. Encriptar con RSA del destinatario
-    final encryptedContent = encryptionService.encryptMessage(
-      content,
-      recipientPublicKey,
-    );
-    
-    // 5. Generar IV único para este mensaje
-    final iv = encryptionService.generateIV();
-
-    final message = await remoteDataSource.sendMessage(
-      userId: userId,
-      conversationId: conversationId,
-      encryptedContent: encryptedContent,
-      encryptionIv: iv,
-    );
-
-    return Right(message);
-  } catch (e) {
-    return Left(ServerFailure(e.toString()));
   }
-}
+
+  //   Obtiene clave pública del destinatario
+  Future<String> _getRecipientPublicKey(String recipientId) async {
+    final response = await supabase
+      .from('users')
+      .select('public_key')
+      .eq('id', recipientId)
+      .single();
+    
+    return response['public_key'] as String;
+  }
 
 Future<String> _getRecipientPublicKey(String recipientId) async {
   final response = await supabase

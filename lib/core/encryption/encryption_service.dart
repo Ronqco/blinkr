@@ -1,20 +1,117 @@
+// 📁 lib/core/encryption/encryption_service.dart
 import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
-import 'package:encrypt/encrypt.dart' as encrypt;
+import 'package:encrypt/encrypt.dart';
 import 'package:pointycastle/export.dart';
+import 'package:pointycastle/asn1.dart'; // ✅ AGREGADO
 import '../storage/secure_storage_service.dart';
 
 class EncryptionService {
   final SecureStorageService _secureStorage;
-  static const String _privateKeyKey = 'private_key';
-  static const String _publicKeyKey = 'public_key';
-
+  
   EncryptionService(this._secureStorage);
 
-  // Generate RSA key pair for E2E encryption
+  // Genera clave AES-256 aleatoria
+  String generateAESKey() {
+    final random = Random.secure();
+    final bytes = List<int>.generate(32, (_) => random.nextInt(256));
+    return base64Encode(bytes);
+  }
+
+  // Genera IV de 16 bytes
+  String generateIV() {
+    final random = Random.secure();
+    final bytes = List<int>.generate(16, (_) => random.nextInt(256));
+    return base64Encode(bytes);
+  }
+
+  // Encripta mensaje con AES-GCM
+  Map<String, String> encryptWithAES(String plaintext, String aesKeyBase64) {
+    try {
+      final key = Key.fromBase64(aesKeyBase64);
+      final iv = IV.fromSecureRandom(16);
+      
+      final encrypter = Encrypter(AES(key, mode: AESMode.gcm));
+      final encrypted = encrypter.encrypt(plaintext, iv: iv);
+      
+      return {
+        'ciphertext': encrypted.base64,
+        'iv': iv.base64,
+      };
+    } catch (e) {
+      throw Exception('AES encryption failed: $e');
+    }
+  }
+
+  // Desencripta mensaje con AES-GCM
+  String decryptWithAES(
+    String ciphertextBase64,
+    String aesKeyBase64,
+    String ivBase64,
+  ) {
+    try {
+      final key = Key.fromBase64(aesKeyBase64);
+      final iv = IV.fromBase64(ivBase64);
+      
+      final encrypter = Encrypter(AES(key, mode: AESMode.gcm));
+      final encrypted = Encrypted.fromBase64(ciphertextBase64);
+      
+      return encrypter.decrypt(encrypted, iv: iv);
+    } catch (e) {
+      throw Exception('AES decryption failed: $e');
+    }
+  }
+
+  // RSA solo para claves (máx 245 bytes)
+  String encryptWithRSA(String data, String publicKeyPem) {
+    try {
+      if (data.length > 245) {
+        throw Exception('RSA can only encrypt up to 245 bytes');
+      }
+      
+      final publicKey = _parsePublicKeyFromPem(publicKeyPem);
+      
+      final cipher = OAEPEncoding(RSAEngine())
+        ..init(true, PublicKeyParameter<RSAPublicKey>(publicKey));
+      
+      final dataBytes = Uint8List.fromList(utf8.encode(data));
+      final encrypted = cipher.process(dataBytes);
+      
+      return base64Encode(encrypted);
+    } catch (e) {
+      throw Exception('RSA encryption failed: $e');
+    }
+  }
+
+  // RSA desencriptación
+  Future<String> decryptWithRSA(String encryptedBase64, String privateKeyPem) async {
+    try {
+      final privateKey = _parsePrivateKeyFromPem(privateKeyPem);
+      
+      final cipher = OAEPEncoding(RSAEngine())
+        ..init(false, PrivateKeyParameter<RSAPrivateKey>(privateKey));
+      
+      final encryptedBytes = base64Decode(encryptedBase64);
+      final decrypted = cipher.process(Uint8List.fromList(encryptedBytes));
+      
+      return utf8.decode(decrypted);
+    } catch (e) {
+      throw Exception('RSA decryption failed: $e');
+    }
+  }
+
+  // ✅ NUEVO: Desencriptar mensaje (wrapper público)
+  Future<String> decryptMessage(String encryptedMessage) async {
+    final privateKeyPem = await _secureStorage.read('rsa_private_key');
+    if (privateKeyPem == null) {
+      throw Exception('Private key not found');
+    }
+    return decryptWithRSA(encryptedMessage, privateKeyPem);
+  }
+
+  // Generación de par de claves RSA
   Future<Map<String, String>> generateKeyPair() async {
-    // Usar pointycastle directamente para generar keys
     final secureRandom = FortunaRandom();
     final random = Random.secure();
     final seeds = List<int>.generate(32, (_) => random.nextInt(256));
@@ -28,97 +125,100 @@ class EncryptionService {
     final publicKey = pair.publicKey as RSAPublicKey;
     final privateKey = pair.privateKey as RSAPrivateKey;
 
-    final publicKeyString = _encodePublicKey(publicKey);
-    final privateKeyString = _encodePrivateKey(privateKey);
+    final publicKeyPem = _encodePublicKeyToPem(publicKey);
+    final privateKeyPem = _encodePrivateKeyToPem(privateKey);
 
-    // Store private key securely
-    await _secureStorage.write(_privateKeyKey, privateKeyString);
-    await _secureStorage.write(_publicKeyKey, publicKeyString);
+    await _secureStorage.write('rsa_private_key', privateKeyPem);
+    await _secureStorage.write('rsa_public_key', publicKeyPem);
 
     return {
-      'publicKey': publicKeyString,
-      'privateKey': privateKeyString,
+      'publicKey': publicKeyPem,
+      'privateKey': privateKeyPem,
     };
   }
 
-  // Encrypt message with recipient's public key
-  String encryptMessage(String message, String recipientPublicKey) {
-    final publicKey = _decodePublicKey(recipientPublicKey);
-    final encrypter = encrypt.Encrypter(encrypt.RSA(publicKey: publicKey));
-    final encrypted = encrypter.encrypt(message);
-    return encrypted.base64;
+  // ✅ CORREGIDO: Parsers con imports correctos
+  RSAPublicKey _parsePublicKeyFromPem(String pem) {
+    final lines = pem.split('\n').where((line) => 
+      !line.contains('BEGIN') && !line.contains('END')).join('');
+    final bytes = base64Decode(lines);
+    
+    final asn1Parser = ASN1Parser(Uint8List.fromList(bytes));
+    final topLevelSeq = asn1Parser.nextObject() as ASN1Sequence;
+    final publicKeyBitString = topLevelSeq.elements![1] as ASN1BitString;
+    
+    final publicKeyAsn1 = ASN1Parser(publicKeyBitString.valueBytes!);
+    final publicKeySeq = publicKeyAsn1.nextObject() as ASN1Sequence;
+    
+    final modulus = (publicKeySeq.elements![0] as ASN1Integer).integer!;
+    final exponent = (publicKeySeq.elements![1] as ASN1Integer).integer!;
+    
+    return RSAPublicKey(modulus, exponent);
   }
 
-  // Decrypt message with own private key
-  Future<String> decryptMessage(String encryptedMessage) async {
-    final privateKeyString = await _secureStorage.read(_privateKeyKey);
-    if (privateKeyString == null) {
-      throw Exception('Private key not found');
-    }
-
-    final privateKey = _decodePrivateKey(privateKeyString);
-    final encrypter = encrypt.Encrypter(encrypt.RSA(privateKey: privateKey));
-    final decrypted = encrypter.decrypt64(encryptedMessage);
-    return decrypted;
+  RSAPrivateKey _parsePrivateKeyFromPem(String pem) {
+    final lines = pem.split('\n').where((line) => 
+      !line.contains('BEGIN') && !line.contains('END')).join('');
+    final bytes = base64Decode(lines);
+    
+    final asn1Parser = ASN1Parser(Uint8List.fromList(bytes));
+    final topLevelSeq = asn1Parser.nextObject() as ASN1Sequence;
+    final privateKeyOctet = topLevelSeq.elements![2] as ASN1OctetString;
+    
+    final privateKeyAsn1 = ASN1Parser(privateKeyOctet.valueBytes!);
+    final privateKeySeq = privateKeyAsn1.nextObject() as ASN1Sequence;
+    
+    final modulus = (privateKeySeq.elements![1] as ASN1Integer).integer!;
+    final privateExponent = (privateKeySeq.elements![3] as ASN1Integer).integer!;
+    final p = (privateKeySeq.elements![4] as ASN1Integer).integer!;
+    final q = (privateKeySeq.elements![5] as ASN1Integer).integer!;
+    
+    return RSAPrivateKey(modulus, privateExponent, p, q);
   }
 
- // Generate a random IV for AES encryption
-  String generateIV() {
-  final iv = encrypt.IV.fromLength(16);
-  return iv.base64;
-}
+  String _encodePublicKeyToPem(RSAPublicKey publicKey) {
+    final algorithmSeq = ASN1Sequence();
+    final algorithmOid = ASN1ObjectIdentifier([1, 2, 840, 113549, 1, 1, 1]);
+    algorithmSeq.add(algorithmOid);
+    algorithmSeq.add(ASN1Null());
 
-  // Symmetric encryption for shared keys
-  String encryptWithSharedKey(String message, String sharedKey) {
-    final key = encrypt.Key.fromBase64(sharedKey);
-    final iv = encrypt.IV.fromLength(16);
-    final encrypter = encrypt.Encrypter(encrypt.AES(key));
-    final encrypted = encrypter.encrypt(message, iv: iv);
-    return '${iv.base64}:${encrypted.base64}';
+    final publicKeySeq = ASN1Sequence();
+    publicKeySeq.add(ASN1Integer(publicKey.modulus!));
+    publicKeySeq.add(ASN1Integer(publicKey.exponent!));
+    final publicKeyBitString = ASN1BitString(publicKeySeq.encode());
+
+    final topLevelSeq = ASN1Sequence();
+    topLevelSeq.add(algorithmSeq);
+    topLevelSeq.add(publicKeyBitString);
+
+    final dataBase64 = base64Encode(topLevelSeq.encode());
+    return '-----BEGIN PUBLIC KEY-----\n$dataBase64\n-----END PUBLIC KEY-----';
   }
 
-  String decryptWithSharedKey(String encryptedMessage, String sharedKey) {
-    final parts = encryptedMessage.split(':');
-    final iv = encrypt.IV.fromBase64(parts[0]);
-    final encrypted = encrypt.Encrypted.fromBase64(parts[1]);
-    final key = encrypt.Key.fromBase64(sharedKey);
-    final encrypter = encrypt.Encrypter(encrypt.AES(key));
-    return encrypter.decrypt(encrypted, iv: iv);
-  }
+  String _encodePrivateKeyToPem(RSAPrivateKey privateKey) {
+    final version = ASN1Integer(BigInt.from(0));
 
-  // Helper methods for key encoding/decoding
-  String _encodePublicKey(RSAPublicKey publicKey) {
-    final modulus = publicKey.modulus!.toRadixString(16);
-    final exponent = publicKey.exponent!.toRadixString(16);
-    return base64Encode(utf8.encode('$modulus:$exponent'));
-  }
+    final algorithmSeq = ASN1Sequence();
+    final algorithmOid = ASN1ObjectIdentifier([1, 2, 840, 113549, 1, 1, 1]);
+    algorithmSeq.add(algorithmOid);
+    algorithmSeq.add(ASN1Null());
 
-  String _encodePrivateKey(RSAPrivateKey privateKey) {
-    final modulus = privateKey.modulus!.toRadixString(16);
-    final exponent = privateKey.exponent!.toRadixString(16);
-    final d = privateKey.privateExponent!.toRadixString(16);
-    final p = privateKey.p!.toRadixString(16);
-    final q = privateKey.q!.toRadixString(16);
-    return base64Encode(utf8.encode('$modulus:$exponent:$d:$p:$q'));
-  }
+    final privateKeySeq = ASN1Sequence();
+    privateKeySeq.add(version);
+    privateKeySeq.add(ASN1Integer(privateKey.modulus!));
+    privateKeySeq.add(ASN1Integer(privateKey.exponent!));
+    privateKeySeq.add(ASN1Integer(privateKey.privateExponent!));
+    privateKeySeq.add(ASN1Integer(privateKey.p!));
+    privateKeySeq.add(ASN1Integer(privateKey.q!));
 
-  RSAPublicKey _decodePublicKey(String encoded) {
-    final decoded = utf8.decode(base64Decode(encoded));
-    final parts = decoded.split(':');
-    return RSAPublicKey(
-      BigInt.parse(parts[0], radix: 16),
-      BigInt.parse(parts[1], radix: 16),
-    );
-  }
+    final publicKeyOctetString = ASN1OctetString(privateKeySeq.encode());
 
-  RSAPrivateKey _decodePrivateKey(String encoded) {
-    final decoded = utf8.decode(base64Decode(encoded));
-    final parts = decoded.split(':');
-    return RSAPrivateKey(
-      BigInt.parse(parts[0], radix: 16),  // modulus
-      BigInt.parse(parts[2], radix: 16),  // privateExponent (d)
-      BigInt.parse(parts[3], radix: 16),  // p
-      BigInt.parse(parts[4], radix: 16),  // q
-    );
+    final topLevelSeq = ASN1Sequence();
+    topLevelSeq.add(version);
+    topLevelSeq.add(algorithmSeq);
+    topLevelSeq.add(publicKeyOctetString);
+
+    final dataBase64 = base64Encode(topLevelSeq.encode());
+    return '-----BEGIN PRIVATE KEY-----\n$dataBase64\n-----END PRIVATE KEY-----';
   }
 }

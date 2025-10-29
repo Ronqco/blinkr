@@ -46,6 +46,17 @@ class AppRouter {
         },
       ),
       GoRoute(
+        path: '/battles',
+        builder: (context, state) => const CompetitiveFeedPage(),
+      ),
+      GoRoute(
+        path: '/battles/:categoryId',
+        builder: (context, state) {
+          final categoryId = state.pathParameters['categoryId']!;
+          return CompetitiveFeedPage(categoryId: categoryId);
+        },
+      ),
+      GoRoute(
         path: '/chats',
         builder: (context, state) => const ChatListPage(),
       ),

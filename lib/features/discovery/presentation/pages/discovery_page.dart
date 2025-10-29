@@ -17,7 +17,7 @@ class DiscoveryPage extends StatefulWidget {
 
 class _DiscoveryPageState extends State<DiscoveryPage> {
   double _radiusKm = 50.0;
-  List<String> _selectedInterests = [];
+  final List<String> _selectedInterests = [];
 
   @override
   void initState() {

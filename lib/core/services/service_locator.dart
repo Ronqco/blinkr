@@ -72,6 +72,8 @@ Future<void> setupServiceLocator() async {
     signInUseCase: getIt(),
     signUpUseCase: getIt(),
     signOutUseCase: getIt(),
+    getFeedPostsUseCase: getIt(),
+    repository: getIt(), 
   ));
   
   // Discovery Feature

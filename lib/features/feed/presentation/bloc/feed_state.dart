@@ -1,5 +1,5 @@
-import 'package:equatable/equatable.dart';
-import '../../domain/entities/post_entity.dart';
+// 📁 lib/features/feed/presentation/bloc/feed_state.dart
+// ✅ ELIMINAR la segunda definición de FeedError (línea 46)
 
 abstract class FeedState extends Equatable {
   const FeedState();
@@ -25,6 +25,15 @@ class FeedLoaded extends FeedState {
   List<Object> get props => [posts, hasMore];
 }
 
+class FeedCompetitiveLoaded extends FeedState {
+  final List<CompetitivePostEntity> posts;
+
+  const FeedCompetitiveLoaded(this.posts);
+
+  @override
+  List<Object> get props => [posts];
+}
+
 class FeedError extends FeedState {
   final String message;
 
@@ -32,4 +41,4 @@ class FeedError extends FeedState {
 
   @override
   List<Object> get props => [message];
-}
+  }

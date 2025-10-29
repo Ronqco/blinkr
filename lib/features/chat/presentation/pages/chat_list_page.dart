@@ -161,14 +161,13 @@ class _ChatListPageState extends State<ChatListPage> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        if (conversation.lastMessageAt != null)
-                          Text(
-                            timeago.format(
-                              conversation.lastMessageAt!,
-                              locale: 'es',
-                            ),
-                            style: Theme.of(context).textTheme.bodySmall,
+                        Text(
+                          timeago.format(
+                            conversation.lastMessageAt!,
+                            locale: 'es',
                           ),
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
                         if (conversation.unreadCount > 0) ...[
                           const SizedBox(height: 4),
                           Container(

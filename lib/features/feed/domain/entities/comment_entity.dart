@@ -1,28 +1,33 @@
-import 'package:equatable/equatable.dart';
-
 class CommentEntity extends Equatable {
   final String id;
   final String postId;
   final String userId;
-  final String username;
-  final String displayName;
-  final String? avatarUrl;
+  final String? parentCommentId;
   final String content;
+
   final int likesCount;
-  final bool isLikedByMe;
+  final bool isActive;
+  final bool isReported;
+
   final DateTime createdAt;
+  final DateTime updatedAt;
+
+  final String? username;
+  final String? avatarUrl;
 
   const CommentEntity({
     required this.id,
     required this.postId,
     required this.userId,
-    required this.username,
-    required this.displayName,
-    this.avatarUrl,
+    this.parentCommentId,
     required this.content,
     this.likesCount = 0,
-    this.isLikedByMe = false,
+    this.isActive = true,
+    this.isReported = false,
     required this.createdAt,
+    required this.updatedAt,
+    this.username,
+    this.avatarUrl,
   });
 
   @override
@@ -30,12 +35,14 @@ class CommentEntity extends Equatable {
         id,
         postId,
         userId,
-        username,
-        displayName,
-        avatarUrl,
+        parentCommentId,
         content,
         likesCount,
-        isLikedByMe,
+        isActive,
+        isReported,
         createdAt,
+        updatedAt,
+        username,
+        avatarUrl,
       ];
 }
