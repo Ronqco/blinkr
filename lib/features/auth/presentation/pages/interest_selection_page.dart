@@ -25,7 +25,7 @@ class _InterestSelectionPageState extends State<InterestSelectionPage>
   late List<InterestCategory> _allCategories;
   late AnimationController _animationController;
   late Animation<double> _scaleAnimation;
-  late Animation<double> _rotationAnimation;
+  //late Animation<double> _rotationAnimation;
 
   @override
   void initState() {
@@ -44,9 +44,7 @@ class _InterestSelectionPageState extends State<InterestSelectionPage>
       ),
     );
     
-    _rotationAnimation = Tween<double>(begin: 0.0, end: 0.0).animate(
-      _animationController,
-    );
+    
   }
 
   @override
@@ -405,18 +403,18 @@ class _SwipeableInterestCardState extends State<SwipeableInterestCard> {
                 end: Alignment.bottomRight,
                 colors: widget.category.isNSFW
                     ? [
-                        const Color(0xFFE67E22).withOpacity(0.8),
+                        const Color(0xFFE67E22).withValues(alpha : 0.8),
                         const Color(0xFFE67E22),
                       ]
                     : [
-                        Theme.of(context).colorScheme.primary.withOpacity(0.8),
+                        Theme.of(context).colorScheme.primary.withValues(alpha : 0.8),
                         Theme.of(context).colorScheme.secondary,
                       ],
               ),
               borderRadius: BorderRadius.circular(24),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.2),
+                  color: Colors.black.withValues(alpha : 0.2),
                   blurRadius: 20,
                   offset: const Offset(0, 10),
                 ),
@@ -461,7 +459,7 @@ class _SwipeableInterestCardState extends State<SwipeableInterestCard> {
                             vertical: 8,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.3),
+                            color: Colors.white.withValues(alpha : 0.3),
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: const Text(
@@ -482,7 +480,7 @@ class _SwipeableInterestCardState extends State<SwipeableInterestCard> {
                   Positioned.fill(
                     child: Container(
                       decoration: BoxDecoration(
-                        color: Colors.green.withOpacity(0.3),
+                        color: Colors.green.withValues(alpha : 0.3),
                         borderRadius: BorderRadius.circular(24),
                       ),
                       child: const Center(
@@ -498,7 +496,7 @@ class _SwipeableInterestCardState extends State<SwipeableInterestCard> {
                   Positioned.fill(
                     child: Container(
                       decoration: BoxDecoration(
-                        color: Colors.red.withOpacity(0.3),
+                        color: Colors.red.withValues(alpha : 0.3),
                         borderRadius: BorderRadius.circular(24),
                       ),
                       child: const Center(

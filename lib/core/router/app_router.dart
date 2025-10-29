@@ -1,3 +1,4 @@
+// 📁 lib/core/router/app_router.dart
 import 'package:go_router/go_router.dart';
 import '../../features/auth/presentation/pages/login_page.dart';
 import '../../features/auth/presentation/pages/register_page.dart';
@@ -5,6 +6,7 @@ import '../../features/auth/presentation/pages/interest_selection_page.dart';
 import '../../features/home/presentation/pages/home_page.dart';
 import '../../features/discovery/presentation/pages/discovery_page.dart';
 import '../../features/feed/presentation/pages/feed_page.dart';
+import '../../features/feed/presentation/pages/competitive_feed_page.dart';
 import '../../features/chat/presentation/pages/chat_list_page.dart';
 import '../../features/chat/presentation/pages/chat_detail_page.dart';
 import '../../features/profile/presentation/pages/profile_page.dart';
@@ -15,7 +17,6 @@ class AppRouter {
   static final GoRouter router = GoRouter(
     initialLocation: '/login',
     routes: [
-      // Auth Routes
       GoRoute(
         path: '/login',
         builder: (context, state) => const LoginPage(),
@@ -29,7 +30,6 @@ class AppRouter {
         builder: (context, state) => const InterestSelectionPage(),
       ),
       
-      // Main App Routes
       GoRoute(
         path: '/home',
         builder: (context, state) => const HomePage(),

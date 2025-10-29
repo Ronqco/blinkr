@@ -1,17 +1,17 @@
+// 📁 lib/features/feed/domain/entities/comment_entity.dart
+import 'package:equatable/equatable.dart';
+
 class CommentEntity extends Equatable {
   final String id;
   final String postId;
   final String userId;
   final String? parentCommentId;
   final String content;
-
   final int likesCount;
   final bool isActive;
   final bool isReported;
-
   final DateTime createdAt;
   final DateTime updatedAt;
-
   final String? username;
   final String? avatarUrl;
 

@@ -167,8 +167,8 @@ class _CompetitiveFeedPageState extends State<CompetitiveFeedPage>
               gradient: isTopThree
                   ? LinearGradient(
                       colors: [
-                        _getRankColor(competitivePost.rank).withOpacity(0.3),
-                        _getRankColor(competitivePost.rank).withOpacity(0.1),
+                        _getRankColor(competitivePost.rank).withValues(alpha : 0.3),
+                        _getRankColor(competitivePost.rank).withValues(alpha : 0.1),
                       ],
                     )
                   : null,
@@ -245,7 +245,7 @@ class _CompetitiveFeedPageState extends State<CompetitiveFeedPage>
                               vertical: 2,
                             ),
                             decoration: BoxDecoration(
-                              color: Colors.orange.withOpacity(0.2),
+                              color: Colors.orange.withValues(alpha : 0.2),
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: Row(

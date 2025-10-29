@@ -1,3 +1,4 @@
+// 📁 lib/core/services/service_locator.dart
 import 'package:get_it/get_it.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -72,8 +73,6 @@ Future<void> setupServiceLocator() async {
     signInUseCase: getIt(),
     signUpUseCase: getIt(),
     signOutUseCase: getIt(),
-    getFeedPostsUseCase: getIt(),
-    repository: getIt(), 
   ));
   
   // Discovery Feature
@@ -86,7 +85,7 @@ Future<void> setupServiceLocator() async {
   getIt.registerLazySingleton(() => GetNearbyUsersUseCase(getIt()));
   getIt.registerFactory(() => DiscoveryBloc(getNearbyUsersUseCase: getIt()));
   
-  // Feed Feature - CORREGIDO: Agregar repository al FeedBloc
+  // Feed Feature
   getIt.registerLazySingleton<FeedRemoteDataSource>(
     () => FeedRemoteDataSourceImpl(getIt()),
   );
@@ -96,7 +95,7 @@ Future<void> setupServiceLocator() async {
   getIt.registerLazySingleton(() => GetFeedPostsUseCase(getIt()));
   getIt.registerFactory(() => FeedBloc(
     getFeedPostsUseCase: getIt(),
-    repository: getIt(), // ← AGREGADO
+    repository: getIt(),
   ));
   
   // Chat Feature

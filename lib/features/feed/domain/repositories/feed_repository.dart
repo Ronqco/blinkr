@@ -1,7 +1,9 @@
+// 📁 lib/features/feed/domain/repositories/feed_repository.dart
 import 'package:dartz/dartz.dart';
 import '../../../../core/error/failures.dart';
 import '../entities/post_entity.dart';
 import '../entities/comment_entity.dart';
+import '../entities/competitive_post_entity.dart';
 
 abstract class FeedRepository {
   Future<Either<Failure, List<PostEntity>>> getFeedPosts({
@@ -36,6 +38,8 @@ abstract class FeedRepository {
     String? categoryId,
     int limit = 50,
   });
+
+  Future<Either<Failure, void>> sharePost(String postId);
 
   Future<Either<Failure, void>> reportPost({
     required String postId,

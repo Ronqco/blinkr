@@ -110,7 +110,7 @@ class _ForYouFeedTabState extends State<ForYouFeedTab> {
       };
     }).toList();
 
-    randomPosts.sort((a, b) => b['score'].compareTo(a['score']));
+    randomPosts.sort((a, b) => (b['score'] as double).compareTo(a['score'] as double));
     return randomPosts;
   }
 
@@ -205,7 +205,7 @@ class _ForYouFeedTabState extends State<ForYouFeedTab> {
             },
             backgroundColor: Colors.transparent,
             selectedColor:
-                Theme.of(context).colorScheme.primary.withOpacity(0.2),
+                Theme.of(context).colorScheme.primary.withValues(alpha : 0.2),
             side: BorderSide(
               color: isSelected
                   ? Theme.of(context).colorScheme.primary
@@ -234,18 +234,18 @@ class _ForYouFeedTabState extends State<ForYouFeedTab> {
                   gradient: LinearGradient(
                     colors: category.isNSFW
                         ? [
-                            const Color(0xFFE67E22).withOpacity(0.7),
-                            const Color(0xFFE67E22).withOpacity(0.9),
+                            const Color(0xFFE67E22).withValues(alpha : 0.7),
+                            const Color(0xFFE67E22).withValues(alpha : 0.9),
                           ]
                         : [
                             Theme.of(context)
                                 .colorScheme
                                 .primary
-                                .withOpacity(0.7),
+                                .withValues(alpha : 0.7),
                             Theme.of(context)
                                 .colorScheme
                                 .secondary
-                                .withOpacity(0.7),
+                                .withValues(alpha : 0.7),
                           ],
                   ),
                   borderRadius: BorderRadius.circular(12),

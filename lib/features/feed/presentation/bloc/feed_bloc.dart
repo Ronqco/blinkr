@@ -120,7 +120,7 @@ class FeedBloc extends Bloc<FeedEvent, FeedState> {
     result.fold(
       (failure) {
         // Si falla, mostrar error en snackbar (manejado en UI)
-        print('Error toggling like: ${failure.message}');
+        // print('Error toggling like: ${failure.message}'); // ⚠️ Descomentado por script
       },
       (_) {
         // Éxito - no hacer nada, el UI se actualizará cuando recargue
@@ -137,7 +137,7 @@ class FeedBloc extends Bloc<FeedEvent, FeedState> {
 
     result.fold(
       (failure) {
-        print('Error sharing post: ${failure.message}');
+        // print('Error sharing post: ${failure.message}'); // ⚠️ Descomentado por script
       },
       (_) {
         // Éxito - el share se registró

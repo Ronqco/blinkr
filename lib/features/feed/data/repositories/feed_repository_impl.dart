@@ -1,9 +1,12 @@
+// 📁 lib/features/feed/data/repositories/feed_repository_impl.dart
 import 'package:dartz/dartz.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/error/failures.dart';
 import '../../domain/entities/post_entity.dart';
+import '../../domain/entities/comment_entity.dart';
+import '../../domain/entities/competitive_post_entity.dart';
 import '../../domain/repositories/feed_repository.dart';
 import '../datasources/feed_remote_datasource.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 class FeedRepositoryImpl implements FeedRepository {
   final FeedRemoteDataSource remoteDataSource;
@@ -30,24 +33,24 @@ class FeedRepositoryImpl implements FeedRepository {
   }
 
   @override
-Future<Either<Failure, void>> sharePost(String postId) async {
-  try {
-    final userId = supabase.auth.currentUser?.id;
-    if (userId == null) {
-      return const Left(ServerFailure('User not authenticated'));
+  Future<Either<Failure, void>> sharePost(String postId) async {
+    try {
+      final userId = supabase.auth.currentUser?.id;
+      if (userId == null) {
+        return const Left(ServerFailure('User not authenticated'));
+      }
+
+      await supabase.from('shares').upsert({
+        'user_id': userId,
+        'post_id': postId,
+        'shared_at': DateTime.now().toIso8601String(),
+      });
+
+      return const Right(null);
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
     }
-
-    await supabase.from('shares').upsert({
-      'user_id': userId,
-      'post_id': postId,
-      'shared_at': DateTime.now().toIso8601String(),
-    });
-
-    return const Right(null);
-  } catch (e) {
-    return Left(ServerFailure(e.toString()));
   }
-}
   
   @override
   Future<Either<Failure, List<CompetitivePostEntity>>> getCompetitiveFeed({
@@ -60,7 +63,6 @@ Future<Either<Failure, void>> sharePost(String postId) async {
         return const Left(ServerFailure('User not authenticated'));
       }
 
-      // Query rankings con posts
       var query = supabase
           .from('daily_feed_rankings')
           .select('''
@@ -73,7 +75,6 @@ Future<Either<Failure, void>> sharePost(String postId) async {
           ''')
           .eq('date', DateTime.now().toIso8601String().split('T')[0]);
 
-      // Filtrar por categoría si se especifica
       if (categoryId != null && categoryId != 'all') {
         query = query.eq('category_id', categoryId);
       }
@@ -82,7 +83,6 @@ Future<Either<Failure, void>> sharePost(String postId) async {
           .order('rank', ascending: true)
           .limit(limit);
 
-      // Mapear a entidades
       final competitivePosts = (response as List<dynamic>).map((ranking) {
         final postData = ranking['post'];
         
@@ -100,7 +100,7 @@ Future<Either<Failure, void>> sharePost(String postId) async {
           nsfwWarning: postData['nsfw_warning'],
           likesCount: ranking['likes_count'] ?? 0,
           commentsCount: ranking['comments_count'] ?? 0,
-          isLikedByMe: false, // TODO: Check user likes
+          isLikedByMe: false,
           createdAt: DateTime.parse(postData['created_at']),
         );
 
@@ -114,26 +114,6 @@ Future<Either<Failure, void>> sharePost(String postId) async {
       }).toList();
 
       return Right(competitivePosts);
-    } catch (e) {
-      return Left(ServerFailure(e.toString()));
-    }
-  }
-
-  // Compartir post
-  @override
-  Future<Either<Failure, void>> sharePost(String postId) async {
-    try {
-      final userId = supabase.auth.currentUser?.id;
-      if (userId == null) {
-        return const Left(ServerFailure('User not authenticated'));
-      }
-
-      await supabase.from('shares').insert({
-        'user_id': userId,
-        'post_id': postId,
-      });
-
-      return const Right(null);
     } catch (e) {
       return Left(ServerFailure(e.toString()));
     }

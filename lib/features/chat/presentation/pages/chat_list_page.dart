@@ -163,7 +163,7 @@ class _ChatListPageState extends State<ChatListPage> {
                       children: [
                         Text(
                           timeago.format(
-                            conversation.lastMessageAt!,
+                            conversation.lastMessageAt,
                             locale: 'es',
                           ),
                           style: Theme.of(context).textTheme.bodySmall,

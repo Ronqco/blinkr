@@ -1,3 +1,4 @@
+// 📁 lib/features/chat/data/datasources/chat_remote_datasource.dart
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/encryption/encryption_service.dart';
 import '../models/conversation_model.dart';
@@ -61,7 +62,7 @@ class ChatRemoteDataSourceImpl implements ChatRemoteDataSource {
         'other_display_name': otherUser['display_name'],
         'other_avatar_url': otherUser['avatar_url'],
         'last_message_at': conv['last_message_at'],
-        'unread_count': 0, // TODO: Calculate unread count
+        'unread_count': 0,
       });
     }).toList();
 
@@ -73,7 +74,6 @@ class ChatRemoteDataSourceImpl implements ChatRemoteDataSource {
     required String userId,
     required String otherUserId,
   }) async {
-    // Check if conversation exists
     final existing = await supabase
         .from('conversations')
         .select('''
@@ -99,7 +99,6 @@ class ChatRemoteDataSourceImpl implements ChatRemoteDataSource {
       });
     }
 
-    // Create new conversation
     final newConv = await supabase
         .from('conversations')
         .insert({
@@ -126,96 +125,69 @@ class ChatRemoteDataSourceImpl implements ChatRemoteDataSource {
     });
   }
 
-@override
-Future<MessageModel> sendMessage({
-  required String userId,
-  required String conversationId,
-  required String encryptedContent,
-  required String encryptionIv,
-  required String encryptedAESKey,
-}) async {
-  final response = await supabase
-      .from('messages')
-      .insert({
-        'conversation_id': conversationId,
-        'sender_id': userId,
-        'encrypted_content': encryptedContent,
-        'encryption_iv': encryptionIv,
-        'encrypted_aes_key': encryptedAESKey,
-      })
-      .select()
-      .single();
+  @override
+  Future<MessageModel> sendMessage({
+    required String userId,
+    required String conversationId,
+    required String encryptedContent,
+    required String encryptionIv,
+    required String encryptedAESKey,
+  }) async {
+    final response = await supabase
+        .from('messages')
+        .insert({
+          'conversation_id': conversationId,
+          'sender_id': userId,
+          'encrypted_content': encryptedContent,
+          'encryption_iv': encryptionIv,
+          'encrypted_aes_key': encryptedAESKey,
+        })
+        .select()
+        .single();
 
-  await incrementMessageCount(userId);
+    await incrementMessageCount(userId);
 
-  // ✅ CORREGIDO: Usar await para método async
-  final privateKeyPem = await encryptionService._secureStorage.read('rsa_private_key');
-  if (privateKeyPem == null) {
-    throw Exception('Private key not found');
+    final decryptedContent = await encryptionService.decryptMessage(
+      response['encrypted_aes_key'],
+    );
+
+    return MessageModel.fromJson({
+      ...response,
+      'content': decryptedContent,
+    });
   }
 
-  // ✅ CORREGIDO: Usar await para decryptWithRSA
-  final aesKey = await encryptionService.decryptWithRSA(
-    response['encrypted_aes_key'],
-    privateKeyPem,
-  );
+  @override
+  Future<List<MessageModel>> getMessages(String conversationId) async {
+    final response = await supabase
+        .from('messages')
+        .select()
+        .eq('conversation_id', conversationId)
+        .order('created_at', ascending: true);
 
-  final decryptedContent = encryptionService.decryptWithAES(
-    response['encrypted_content'],
-    aesKey,
-    response['encryption_iv'],
-  );
+    final messages = await Future.wait(
+      (response as List<dynamic>).map((msg) async {
+        try {
+          final decryptedContent = await encryptionService.decryptMessage(
+            msg['encrypted_aes_key'],
+          );
 
-  return MessageModel.fromJson({
-    ...response,
-    'content': decryptedContent,
-  });
-}
+          return MessageModel.fromJson({
+            ...msg,
+            'content': decryptedContent,
+          });
+        } catch (e) {
+          return MessageModel.fromJson({
+            ...msg,
+            'content': '[Mensaje encriptado - no se pudo desencriptar]',
+          });
+        }
+      }),
+    );
 
-@override
-Future<List<MessageModel>> getMessages(String conversationId) async {
-  final response = await supabase
-      .from('messages')
-      .select()
-      .eq('conversation_id', conversationId)
-      .order('created_at', ascending: true);
-
-  // ✅ CORREGIDO: Usar await
-  final privateKeyPem = await encryptionService._secureStorage.read('rsa_private_key');
-  if (privateKeyPem == null) {
-    throw Exception('Private key not found');
+    return messages;
   }
 
-  final messages = await Future.wait(
-    (response as List<dynamic>).map((msg) async {
-      try {
-        // ✅ CORREGIDO: Usar await
-        final aesKey = await encryptionService.decryptWithRSA(
-          msg['encrypted_aes_key'],
-          privateKeyPem,
-        );
-
-        final decryptedContent = encryptionService.decryptWithAES(
-          msg['encrypted_content'],
-          aesKey,
-          msg['encryption_iv'],
-        );
-
-        return MessageModel.fromJson({
-          ...msg,
-          'content': decryptedContent,
-        });
-      } catch (e) {
-        return MessageModel.fromJson({
-          ...msg,
-          'content': '[Mensaje encriptado - no se pudo desencriptar]',
-        });
-      }
-    }),
-  );
-
-  return messages;
-}
   @override
   Future<void> markAsRead(String conversationId, String userId) async {
     await supabase
@@ -230,7 +202,7 @@ Future<List<MessageModel>> getMessages(String conversationId) async {
   Future<Map<String, dynamic>> getMessageLimit(String userId) async {
     final result = await supabase.rpc('check_message_limit', params: {
       'p_user_id': userId,
-      'p_is_premium': false, // TODO: Get from user profile
+      'p_is_premium': false,
     });
 
     return {

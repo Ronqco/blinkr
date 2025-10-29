@@ -21,8 +21,8 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
   await dotenv.load(fileName: ".env");
-  print("Supabase URL: ${dotenv.env['SUPABASE_URL']}"); // Verifica que la URL se cargue correctamente
-  print("Supabase Anon Key: ${dotenv.env['SUPABASE_ANON_KEY']}"); // Verifica que la clave se cargue correctamente
+  // print("Supabase URL: ${dotenv.env['SUPABASE_URL']}"); // Verifica que la URL se cargue correctamente // ⚠️ Descomentado por script
+  // print("Supabase Anon Key: ${dotenv.env['SUPABASE_ANON_KEY']}"); // Verifica que la clave se cargue correctamente // ⚠️ Descomentado por script
   
   AppConfig.validateConfig();
 

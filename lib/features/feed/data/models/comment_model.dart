@@ -1,3 +1,4 @@
+// 📁 lib/features/feed/data/models/comment_model.dart
 import '../../domain/entities/comment_entity.dart';
 
 class CommentModel extends CommentEntity {
@@ -5,13 +6,15 @@ class CommentModel extends CommentEntity {
     required super.id,
     required super.postId,
     required super.userId,
-    required super.username,
-    required super.displayName,
-    super.avatarUrl,
+    super.parentCommentId,
     required super.content,
-    super.likesCount,
-    super.isLikedByMe,
+    super.likesCount = 0,
+    super.isActive = true,
+    super.isReported = false,
     required super.createdAt,
+    required super.updatedAt,
+    super.username,
+    super.avatarUrl,
   });
 
   factory CommentModel.fromJson(Map<String, dynamic> json) {
@@ -19,46 +22,34 @@ class CommentModel extends CommentEntity {
       id: json['id'] as String,
       postId: json['post_id'] as String,
       userId: json['user_id'] as String,
-      username: json['username'] as String,
-      displayName: json['display_name'] as String,
-      avatarUrl: json['avatar_url'] as String?,
+      parentCommentId: json['parent_comment_id'] as String?,
       content: json['content'] as String,
       likesCount: json['likes_count'] as int? ?? 0,
-      isLikedByMe: json['is_liked_by_me'] as bool? ?? false,
+      isActive: json['is_active'] as bool? ?? true,
+      isReported: json['is_reported'] as bool? ?? false,
       createdAt: DateTime.parse(json['created_at'] as String),
-    );
-  }
-}
-
-class CommentModel extends CommentEntity {
-  const CommentModel({
-    required super.id,
-    required super.postId,
-    required super.userId,
-    required super.username,
-    required super.displayName,
-    super.avatarUrl,
-    required super.content,
-    super.likesCount,
-    super.isLikedByMe,
-    required super.createdAt,
-  });
-
-  factory CommentModel.fromJson(Map<String, dynamic> json) {
-    return CommentModel(
-      id: json['id'] as String,
-      postId: json['post_id'] as String,
-      userId: json['user_id'] as String,
-      username: json['username'] as String,
-      displayName: json['display_name'] as String,
+      updatedAt: DateTime.parse(json['updated_at'] as String),
+      username: json['username'] as String?,
       avatarUrl: json['avatar_url'] as String?,
-      content: json['content'] as String,
-      likesCount: json['likes_count'] as int? ?? 0,
-      isLikedByMe: json['is_liked_by_me'] as bool? ?? false,
-      createdAt: DateTime.parse(json['created_at'] as String),
     );
   }
 
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'post_id': postId,
+      'user_id': userId,
+      'parent_comment_id': parentCommentId,
+      'content': content,
+      'likes_count': likesCount,
+      'is_active': isActive,
+      'is_reported': isReported,
+      'created_at': createdAt.toIso8601String(),
+      'updated_at': updatedAt.toIso8601String(),
+      'username': username,
+      'avatar_url': avatarUrl,
+    };
+  }
 
   CommentModel copyWith({
     String? id,

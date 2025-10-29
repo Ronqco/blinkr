@@ -1,7 +1,7 @@
+// 📁 lib/features/auth/data/datasources/auth_remote_datasource.dart
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart'; // ✅ AÑADIR
-import '../../../../core/encryption/encryption_service.dart'; // ✅ AÑADIR
-import '../../../../core/storage/secure_storage_service.dart'; // ✅ AÑADIR
+import '../../../../core/encryption/encryption_service.dart';
+import '../../../../core/services/service_locator.dart';
 import '../models/user_model.dart';
 
 abstract class AuthRemoteDataSource {
@@ -71,10 +71,9 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       throw Exception('Sign up failed');
     }
 
-    // ✅ Generar claves de encriptación
+    // Generar claves de encriptación
     final encryptionService = getIt<EncryptionService>();
     final keyPair = await encryptionService.generateKeyPair();
-
 
     final userProfile = {
       'id': response.user!.id,

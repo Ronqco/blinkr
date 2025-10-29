@@ -4,7 +4,7 @@ import 'dart:math';
 import 'dart:typed_data';
 import 'package:encrypt/encrypt.dart';
 import 'package:pointycastle/export.dart';
-import 'package:pointycastle/asn1.dart'; // ✅ AGREGADO
+import 'package:pointycastle/asn1.dart';
 import '../storage/secure_storage_service.dart';
 
 class EncryptionService {
@@ -101,7 +101,7 @@ class EncryptionService {
     }
   }
 
-  // ✅ NUEVO: Desencriptar mensaje (wrapper público)
+  // Desencriptar mensaje (wrapper público)
   Future<String> decryptMessage(String encryptedMessage) async {
     final privateKeyPem = await _secureStorage.read('rsa_private_key');
     if (privateKeyPem == null) {
@@ -137,7 +137,7 @@ class EncryptionService {
     };
   }
 
-  // ✅ CORREGIDO: Parsers con imports correctos
+  // Parse public key from PEM
   RSAPublicKey _parsePublicKeyFromPem(String pem) {
     final lines = pem.split('\n').where((line) => 
       !line.contains('BEGIN') && !line.contains('END')).join('');
@@ -156,6 +156,7 @@ class EncryptionService {
     return RSAPublicKey(modulus, exponent);
   }
 
+  // Parse private key from PEM
   RSAPrivateKey _parsePrivateKeyFromPem(String pem) {
     final lines = pem.split('\n').where((line) => 
       !line.contains('BEGIN') && !line.contains('END')).join('');
@@ -176,6 +177,7 @@ class EncryptionService {
     return RSAPrivateKey(modulus, privateExponent, p, q);
   }
 
+  // ✅ CORREGIDO: Encode public key to PEM
   String _encodePublicKeyToPem(RSAPublicKey publicKey) {
     final algorithmSeq = ASN1Sequence();
     final algorithmOid = ASN1ObjectIdentifier([1, 2, 840, 113549, 1, 1, 1]);
@@ -185,7 +187,10 @@ class EncryptionService {
     final publicKeySeq = ASN1Sequence();
     publicKeySeq.add(ASN1Integer(publicKey.modulus!));
     publicKeySeq.add(ASN1Integer(publicKey.exponent!));
-    final publicKeyBitString = ASN1BitString(publicKeySeq.encode());
+    final publicKeySeqBytes = publicKeySeq.encode();
+    
+    // ✅ ASN1BitString con argumento nombrado 'stringValues'
+    final publicKeyBitString = ASN1BitString(stringValues: publicKeySeqBytes);
 
     final topLevelSeq = ASN1Sequence();
     topLevelSeq.add(algorithmSeq);
@@ -195,6 +200,7 @@ class EncryptionService {
     return '-----BEGIN PUBLIC KEY-----\n$dataBase64\n-----END PUBLIC KEY-----';
   }
 
+  // ✅ CORREGIDO: Encode private key to PEM
   String _encodePrivateKeyToPem(RSAPrivateKey privateKey) {
     final version = ASN1Integer(BigInt.from(0));
 
@@ -204,14 +210,26 @@ class EncryptionService {
     algorithmSeq.add(ASN1Null());
 
     final privateKeySeq = ASN1Sequence();
-    privateKeySeq.add(version);
+    privateKeySeq.add(ASN1Integer(BigInt.from(0))); // version
     privateKeySeq.add(ASN1Integer(privateKey.modulus!));
     privateKeySeq.add(ASN1Integer(privateKey.exponent!));
     privateKeySeq.add(ASN1Integer(privateKey.privateExponent!));
     privateKeySeq.add(ASN1Integer(privateKey.p!));
     privateKeySeq.add(ASN1Integer(privateKey.q!));
+    
+    // dP, dQ, qInv
+    final dP = privateKey.privateExponent! % (privateKey.p! - BigInt.one);
+    final dQ = privateKey.privateExponent! % (privateKey.q! - BigInt.one);
+    final qInv = privateKey.q!.modInverse(privateKey.p!);
+    
+    privateKeySeq.add(ASN1Integer(dP));
+    privateKeySeq.add(ASN1Integer(dQ));
+    privateKeySeq.add(ASN1Integer(qInv));
 
-    final publicKeyOctetString = ASN1OctetString(privateKeySeq.encode());
+    final privateKeySeqBytes = privateKeySeq.encode();
+    
+    // ✅ ASN1OctetString con argumento nombrado 'octets'
+    final publicKeyOctetString = ASN1OctetString(octets: privateKeySeqBytes);
 
     final topLevelSeq = ASN1Sequence();
     topLevelSeq.add(version);
